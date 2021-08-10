@@ -1,0 +1,26 @@
+apiVersion: batch/v1 
+kind: Job 
+metadata: 
+  name: poi-checker 
+spec: 
+  template:
+    spec:
+      containers: 
+        - name: poi-checker 
+          image: check_poi:latest
+          imagePullPolicy: Always
+          env:
+            - name: ETHEREUM
+              valueFrom:
+                secretKeyRef:
+                  name: mainnet-rpc
+                  key: address
+            - name: INDEX_NODE_ENDPOINT
+              value: http://index-node:8030/graphql
+            - name: NO_ZERO_POIS
+              value: 'true'
+            - name: SUBGRAPH_IPFS_HASH
+              value: QmTKXLEdMD6Vq7Nwxo8XAfnHpG6H1TzL1AGwiqLpoae3Pb
+
+      restartPolicy: Never
+  backoffLimit: 1
