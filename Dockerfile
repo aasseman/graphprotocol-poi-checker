@@ -12,4 +12,4 @@ RUN pip3 install -r requirements.txt
 
 ADD check_poi.py ./
 
-ENTRYPOINT [ "cat" ]
+CMD [ "python", "check_poi.py" ]

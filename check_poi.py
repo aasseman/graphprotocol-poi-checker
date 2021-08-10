@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import argparse
 import json
 import os
+import re
 from string import Template
+from typing import List
 
 import base58
+import configargparse
 import requests
 
 
@@ -194,56 +196,66 @@ def convert_to_proper_indexer_list(indexers_list):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = configargparse.ArgParser()
     parser.add_argument(
         "--subgraph_ipfs_hash",
+        env_var="SUBGRAPH_IPFS_HASH",
         help="subgraph ipfs_hash to analyze",
         required=True,
         type=str,
     )
     parser.add_argument(
         "--graph_endpoint",
+        env_var="GRAPH_ENDPOINT",
         help="graph network endpoint (default: %(default)s)",
         default="https://gateway.network.thegraph.com/network",
         type=str,
     )
     parser.add_argument(
         "--local_index_node_endpoint",
+        env_var="INDEX_NODE_ENDPOINT",
         help="local index node endpoint (default: %(default)s)",
         default="http://index-node:8030/graphql",
         type=str,
     )
     parser.add_argument(
-        "--block_hash_endpoint",
+        "--ethereum",
+        env_var="ETHEREUM",
         help="ethereum endpoint to request block hash (default: %(default)s)",
         default="https://eth-mainnet.alchemyapi.io/v2/demo",
         type=str,
     )
     parser.add_argument(
-        "--number_allocation_to_check",
+        "--num_check",
+        env_var="NUM_CHECK",
         help="number of last closed allocation to check poi (default: %(default)s)",
         default=10,
         type=int,
     )
     parser.add_argument(
-        "--indexers_list",
+        "--indexers",
+        env_var="INDEXERS",
         help="comma separated list of indexers to check poi with (default: %(default)s)",
         default="all",
         type=str,
     )
     parser.add_argument(
         "--no-zero-pois",
+        env_var="NO_ZERO_POIS",
         help="do not include allocations with zero pois (default: %(default)s)",
         action="store_true",
     )
     args = parser.parse_args()
 
-    subgraph_ipfs_hash = args.subgraph_ipfs_hash
-    graph_endpoint = args.graph_endpoint
-    local_index_node_endpoint = args.local_index_node_endpoint
-    block_hash_endpoint = args.block_hash_endpoint
-    number_allocation_to_check = args.number_allocation_to_check
-    indexers_list = convert_to_proper_indexer_list(args.indexers_list)
+    subgraph_ipfs_hash: str = args.subgraph_ipfs_hash
+    graph_endpoint: str = args.graph_endpoint
+    local_index_node_endpoint: str = args.local_index_node_endpoint
+    block_hash_endpoint: str = args.ethereum
+    number_allocation_to_check: int = args.num_check
+    indexers_list: List[str] = convert_to_proper_indexer_list(args.indexers)
+
+    # Remove network name -- such as 'mainnet:' -- at the beginning if present
+    block_hash_endpoint = re.sub(r".*:(?=https?://)", "", block_hash_endpoint)
 
     if args.no_zero_pois:
         zero_pois = 'poi_not: "0x0000000000000000000000000000000000000000000000000000000000000000",'
