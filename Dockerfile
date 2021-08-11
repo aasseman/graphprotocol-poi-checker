@@ -10,6 +10,6 @@ WORKDIR $GRAPH_HOME
 ADD requirements.txt ./
 RUN pip3 install -r requirements.txt
 
-ADD check_poi.py ./
+ADD *.py ./
 
-CMD [ "python", "check_poi.py" ]
+CMD [ "python", "-u", "check_poi.py" ]

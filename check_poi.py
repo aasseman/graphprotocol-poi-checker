@@ -10,6 +10,8 @@ import base58
 import configargparse
 import requests
 
+from db_utils import get_indexed_subgraphs
+
 
 def to_id(hash):
     bytes_value = base58.b58decode(hash)
@@ -198,13 +200,6 @@ def convert_to_proper_indexer_list(indexers_list):
 if __name__ == "__main__":
     parser = configargparse.ArgParser()
     parser.add_argument(
-        "--subgraph_ipfs_hash",
-        env_var="SUBGRAPH_IPFS_HASH",
-        help="subgraph ipfs_hash to analyze",
-        required=True,
-        type=str,
-    )
-    parser.add_argument(
         "--graph_endpoint",
         env_var="GRAPH_ENDPOINT",
         help="graph network endpoint (default: %(default)s)",
@@ -245,9 +240,42 @@ if __name__ == "__main__":
         help="do not include allocations with zero pois (default: %(default)s)",
         action="store_true",
     )
+    parser.add_argument(
+        "--db-name",
+        env_var="DB_NAME",
+        help="",
+        required=True,
+        type=str,
+    )
+    parser.add_argument(
+        "--db-user",
+        env_var="DB_USER",
+        help="",
+        required=True,
+        type=str,
+    )
+    parser.add_argument(
+        "--db-password",
+        env_var="DB_PASSWORD",
+        help="",
+        required=True,
+        type=str,
+    )
+    parser.add_argument(
+        "--db-host",
+        env_var="DB_HOST",
+        help="",
+        required=True,
+        type=str,
+    )
     args = parser.parse_args()
 
-    subgraph_ipfs_hash: str = args.subgraph_ipfs_hash
+    subgraph_ipfs_hashes = get_indexed_subgraphs(
+        dbname=args.db_name,
+        user=args.db_user,
+        password=args.db_password,
+        host=args.db_host,
+    )
     graph_endpoint: str = args.graph_endpoint
     local_index_node_endpoint: str = args.local_index_node_endpoint
     block_hash_endpoint: str = args.ethereum
@@ -262,54 +290,56 @@ if __name__ == "__main__":
     else:
         zero_pois = ""
 
-    print("Start to check POI for subgraph: {}".format(subgraph_ipfs_hash))
+    for subgraph_ipfs_hash in subgraph_ipfs_hashes:
+        print("#" * 80)
+        print("Start to check POI for subgraph: {}".format(subgraph_ipfs_hash))
+        print("#" * 80)
 
-    subgraph_deployment_id = to_id(subgraph_ipfs_hash)
-    current_epoch = get_current_epoch()
-    print("Current Epoch: {}".format(current_epoch))
-    indexers_poi_epoch = get_indexers_poi_epoch(subgraph_deployment_id, zero_pois)
+        subgraph_deployment_id = to_id(subgraph_ipfs_hash)
+        current_epoch = get_current_epoch()
+        print("Current Epoch: {}".format(current_epoch))
+        indexers_poi_epoch = get_indexers_poi_epoch(subgraph_deployment_id, zero_pois)
 
-    for i in indexers_poi_epoch:
-        start_block = get_start_block(i["epoch"])
-        start_block_hash = get_start_block_hash(start_block)
-        my_poi = generate_poi(
-            i["indexer_id"], start_block, start_block_hash, subgraph_ipfs_hash
-        )
-
-        print()
-        if my_poi != i["poi"]:
-            previous_start_block = get_start_block(i["epoch"] - 1)
-            previous_start_block_hash = get_start_block_hash(previous_start_block)
-            previous_my_poi = generate_poi(
-                i["indexer_id"],
-                previous_start_block,
-                previous_start_block_hash,
-                subgraph_ipfs_hash,
+        for i in indexers_poi_epoch:
+            start_block = get_start_block(i["epoch"])
+            start_block_hash = get_start_block_hash(start_block)
+            my_poi = generate_poi(
+                i["indexer_id"], start_block, start_block_hash, subgraph_ipfs_hash
             )
-            if previous_my_poi != i["poi"]:
-                print(
-                    "FAILED: POI missmatched with indexer {0}. Generated POI: {1} Indexer POI: {2} Allocation was closed in {3} EPOCH. Allocated Tokens: {4}".format(
-                        i["indexer_id"],
-                        my_poi,
-                        i["poi"],
-                        i["epoch"],
-                        i["allocatedTokens"],
-                    )
+
+            print()
+            if my_poi != i["poi"]:
+                previous_start_block = get_start_block(i["epoch"] - 1)
+                previous_start_block_hash = get_start_block_hash(previous_start_block)
+                previous_my_poi = generate_poi(
+                    i["indexer_id"],
+                    previous_start_block,
+                    previous_start_block_hash,
+                    subgraph_ipfs_hash,
                 )
+                if previous_my_poi != i["poi"]:
+                    print(
+                        "FAILED: POI missmatched with indexer {0}. Generated POI: {1} Indexer POI: {2} Allocation was closed in {3} EPOCH. Allocated Tokens: {4}".format(
+                            i["indexer_id"],
+                            my_poi,
+                            i["poi"],
+                            i["epoch"],
+                            i["allocatedTokens"],
+                        )
+                    )
+                else:
+                    print(
+                        "OK: POI matched with indexer {0} for epoch {2}. Allocation was closed in {1} EPOCH. Allocated Tokens: {3}".format(
+                            i["indexer_id"],
+                            i["epoch"],
+                            i["epoch"] - 1,
+                            i["allocatedTokens"],
+                        )
+                    )
             else:
                 print(
-                    "OK: POI matched with indexer {0} for epoch {2}. Allocation was closed in {1} EPOCH. Allocated Tokens: {3}".format(
-                        i["indexer_id"],
-                        i["epoch"],
-                        i["epoch"] - 1,
-                        i["allocatedTokens"],
+                    "OK: POI matched with indexer {0}. Allocation was closed in {1} EPOCH. Allocated Tokens: {2}".format(
+                        i["indexer_id"], i["epoch"], i["allocatedTokens"]
                     )
                 )
-            print()
-        else:
-            print(
-                "OK: POI matched with indexer {0}. Allocation was closed in {1} EPOCH. Allocated Tokens: {2}".format(
-                    i["indexer_id"], i["epoch"], i["allocatedTokens"]
-                )
-            )
-            print()
+        print()

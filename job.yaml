@@ -19,8 +19,27 @@ spec:
               value: http://index-node:8030/graphql
             - name: NO_ZERO_POIS
               value: 'true'
-            - name: SUBGRAPH_IPFS_HASH
-              value: QmTKXLEdMD6Vq7Nwxo8XAfnHpG6H1TzL1AGwiqLpoae3Pb
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: host
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: graph_db
+
 
       restartPolicy: Never
   backoffLimit: 1
